@@ -8,4 +8,5 @@ mod event;
 mod event_queue;
 mod packets;
 pub mod peer;
+mod routing;
 mod state;
