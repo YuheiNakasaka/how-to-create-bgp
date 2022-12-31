@@ -1,11 +1,18 @@
 use how_to_create_bgp::config::Config;
 use how_to_create_bgp::peer::Peer;
+use std::env;
 use std::str::FromStr;
 
 #[tokio::main]
 async fn main() {
-    let config = vec![Config::from_str("6452 127.0.0.1 65413 127.0.0.2 active").unwrap()];
-    let mut peers: Vec<Peer> = config.into_iter().map(Peer::new).collect();
+    let config = env::args().skip(1).fold("".to_owned(), |mut acc, s| {
+        acc += &(s.to_owned() + " ");
+        acc
+    });
+    let config = config.trim_end();
+    let configs = vec![Config::from_str(&config).unwrap()];
+
+    let mut peers: Vec<Peer> = configs.into_iter().map(Peer::new).collect();
     for peer in &mut peers {
         peer.start();
     }

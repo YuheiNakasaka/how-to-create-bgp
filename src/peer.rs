@@ -2,10 +2,11 @@ use crate::{config::Config, config::Mode, event::Event, event_queue::EventQueue,
 use anyhow::{Context, Result};
 use tokio::net::{TcpListener, TcpStream};
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(Debug)]
 pub struct Peer {
     state: State,
     event_queue: EventQueue,
+    tcp_connection: Option<TcpStream>,
     config: Config,
 }
 
@@ -15,6 +16,7 @@ impl Peer {
             state: State::Idle,
             event_queue: EventQueue::new(),
             config,
+            tcp_connection: None,
         }
     }
 
@@ -32,6 +34,14 @@ impl Peer {
         match &self.state {
             State::Idle => match event {
                 Event::ManualStart => {
+                    self.tcp_connection = match self.config.mode {
+                        Mode::Active => self.connect_to_remote_peer().await,
+                        Mode::Passive => self.wait_connection_from_remote_peer().await,
+                    }
+                    .ok();
+                    self.tcp_connection.as_ref().unwrap_or_else(|| {
+                        panic!("Failed to start TCP Connection. {:?}", self.config)
+                    });
                     self.state = State::Connect;
                 }
                 _ => {}
@@ -39,12 +49,40 @@ impl Peer {
             _ => {}
         }
     }
+
+    async fn connect_to_remote_peer(&self) -> Result<TcpStream> {
+        let bgp_port = 179;
+        TcpStream::connect((self.config.remote_ip, bgp_port))
+            .await
+            .context(format!(
+                "cannot connect to remote peer {0}:{1}",
+                self.config.remote_ip, bgp_port
+            ))
+    }
+
+    async fn wait_connection_from_remote_peer(&self) -> Result<TcpStream> {
+        let bgp_port = 179;
+        let listener = TcpListener::bind((self.config.local_ip, bgp_port))
+            .await
+            .context(format!(
+                "cannot bind {0}:{1}",
+                self.config.local_ip, bgp_port
+            ))?;
+        Ok(listener
+            .accept()
+            .await
+            .context(format!(
+                "cannot accept {0}:{1}",
+                self.config.local_ip, bgp_port
+            ))?
+            .0)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::{sleep, Duration};
+    use tokio::time::Duration;
 
     #[tokio::test]
     async fn peer_can_transition_to_connect_state() {
