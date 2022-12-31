@@ -1,4 +1,4 @@
-use crate::packets::{keepalive::KeepaliveMessage, open::OpenMessage};
+use crate::packets::{keepalive::KeepaliveMessage, open::OpenMessage, update::UpdateMessage};
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub enum Event {
@@ -6,4 +6,8 @@ pub enum Event {
     TcpConnectionConfirmed,
     BgpOpen(OpenMessage),
     KeepAliveMsg(KeepaliveMessage),
+    UpdateMsg(UpdateMessage),
+    Established,
+    LocRibChanged,
+    AdjRibOutChanged,
 }

@@ -7,11 +7,13 @@ use crate::error::{ConvertBgpMessageToBytesError, ConvertBytesToBgpMessageError}
 use crate::packets::header::{Header, MessageType};
 use crate::packets::keepalive::KeepaliveMessage;
 use crate::packets::open::OpenMessage;
+use crate::packets::update::UpdateMessage;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub enum Message {
     Open(OpenMessage),
     Keepalive(KeepaliveMessage),
+    Update(UpdateMessage),
 }
 
 // MessageとBytesの相互変換用
@@ -28,9 +30,10 @@ impl TryFrom<BytesMut> for Message {
         };
 
         let header = Header::try_from(BytesMut::from(&bytes[0..header_bytes_length]))?;
-        match &header.type_ {
-            &MessageType::Open => Ok(Message::Open(OpenMessage::try_from(bytes)?)),
-            &MessageType::Keepalive => Ok(Message::Keepalive(KeepaliveMessage::try_from(bytes)?)),
+        match header.type_ {
+            MessageType::Open => Ok(Message::Open(OpenMessage::try_from(bytes)?)),
+            MessageType::Keepalive => Ok(Message::Keepalive(KeepaliveMessage::try_from(bytes)?)),
+            MessageType::Update => Ok(Message::Update(UpdateMessage::try_from(bytes)?)),
         }
     }
 }
@@ -41,6 +44,7 @@ impl From<Message> for BytesMut {
         match message {
             Message::Open(open) => open.into(),
             Message::Keepalive(keepalive) => keepalive.into(),
+            Message::Update(update) => update.into(),
         }
     }
 }
